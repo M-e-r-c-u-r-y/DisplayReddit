@@ -1,0 +1,46 @@
+version: "3.8"
+services:
+  backend:
+    container_name: backend
+    build:
+      context: ./backend
+      target: dev
+    # command: uvicorn main:app --reload --workers 1 --host 0.0.0.0 --port 8000
+    # command: ls -al /usr/src/app/output
+    environment:
+      - MAX_ROWS=5
+      - OUTPUT_PATH=./output/
+    # expose:
+    #   - "8000"
+    ports:
+      - "8000:8000"
+    # environment:
+    #   - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./backend:/usr/src/app
+      - ./../output:/usr/src/app/output
+    networks:
+      - webappnetwork
+  frontend:
+    container_name: frontend
+    stdin_open: true
+    build:
+      context: ./frontend
+    command: npm start
+    # command: ls -al /usr/src/app
+    # expose:
+    #   - "3000"
+    ports:
+      - 3000:3000
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules
+    networks:
+      - webappnetwork
+    depends_on:
+      - backend
+networks:
+  webappnetwork:
+    driver: bridge

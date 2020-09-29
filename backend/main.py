@@ -15,7 +15,6 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"])
 MAX_ROWS = int(os.environ.get("MAX_ROWS", "5"))
 OUTPUT_PATH = os.environ.get("OUTPUT_PATH", "Not Set")
 
-
 @app.get("/")
 def read_root():
     return {"API": "Working"}

@@ -11,7 +11,7 @@ import InvalidPath from "./InvalidPath";
 import Button from "./Button";
 
 const DisplayBackendData = ({ location: { search, pathname } }) => {
-  const domain = "http://127.0.0.1:8000";
+  const domain = "http://localhost:8000";
   const maxrows = 5;
   let history = useHistory();
   let location = useLocation();

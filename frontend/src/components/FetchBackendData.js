@@ -9,7 +9,7 @@ import InvalidPath from "./InvalidPath";
 import DisplayOptions from "./DisplayOptions";
 
 const FetchBackendData = () => {
-  const domain = "http://127.0.0.1:8000";
+  const domain = "http://localhost:8000";
   const path = "/display";
   const result = useFetchData(domain + path);
   const [output, setOutput] = useState([]);
