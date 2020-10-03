@@ -1,11 +1,26 @@
 version: "3.8"
 services:
   redis:
+    container_name: redis
     image: "redislabs/rejson:latest"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.20'
+          memory: 200M
+        reservations:
+          memory: 100M
     networks:
       - webappnetwork
   backend:
     container_name: backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.20'
+          memory: 500M
+        reservations:
+          memory: 100M
     build:
       context: ./backend
       target: dev
@@ -30,6 +45,13 @@ services:
       - redis
   frontend:
     container_name: frontend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.40'
+          memory: 500M
+        reservations:
+          memory: 200M
     stdin_open: true
     build:
       context: ./frontend

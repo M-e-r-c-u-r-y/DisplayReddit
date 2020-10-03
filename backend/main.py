@@ -10,6 +10,7 @@ from rejson import Client, Path
 
 app = FastAPI()
 cache = Client(host='redis', port=6379, decode_responses=True)
+pipe = cache.pipeline()
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"])
 
@@ -18,6 +19,7 @@ MAX_ROWS = int(os.environ.get("MAX_ROWS", "5"))
 OUTPUT_PATH = os.environ.get("OUTPUT_PATH", "Not Set")
 CACHE_MINUTES = int(os.environ.get("CACHE_MINUTES", 15))
 
+# Check if api's working
 @app.get("/")
 def read_root():
     return {"API": "Working"}
@@ -39,6 +41,7 @@ def clear_cached_keys():
     cache.flushdb()
     return {"cache": cache.keys()}
 
+#Fetch data
 @app.get("/data/{fetch_type}/{fetch_category}/{file_time}")
 def read_full_data(
     fetch_type: str,
@@ -87,8 +90,16 @@ def read_full_data(
                 data["body"] = data["body"].apply(utils.cleanse_text)
 
             data = data.to_dict("records")
-            cache.jsonset(url_path, Path.rootPath(), data)
-            cache.expire(url_path, timedelta(minutes=CACHE_MINUTES))
+            try:
+                pipe.watch(url_path)
+                pipe.multi()
+                pipe.jsonset(url_path, Path.rootPath(), data)
+                pipe.expire(url_path, timedelta(minutes=CACHE_MINUTES))
+                pipe.execute()
+            except cache.WatchError:
+                pass
+            finally:
+                pipe.reset()
             return data
         except FileNotFoundError:
             return {"error": {"detail": "Page Not Found"}}
@@ -97,7 +108,7 @@ def read_full_data(
     else:
         return {"error": {"detail": "No access"}}
 
-
+# Return all valid paths
 @app.get("/display")
 def read_valid_paths():
     if cache.exists('/display'):
@@ -121,6 +132,14 @@ def read_valid_paths():
     }
 
     data = pd.DataFrame(data=template).to_dict("records")
-    cache.jsonset('/display', Path.rootPath(), data)
-    cache.expire("/display", timedelta(minutes=CACHE_MINUTES))
+    try:
+        pipe.watch('/display')
+        pipe.multi()
+        pipe.jsonset('/display', Path.rootPath(), data)
+        pipe.expire("/display", timedelta(minutes=CACHE_MINUTES))
+        pipe.execute()
+    except cache.WatchError:
+        pass
+    finally:
+        pipe.reset()
     return data
