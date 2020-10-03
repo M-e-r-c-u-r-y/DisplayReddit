@@ -1,24 +1,43 @@
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import glob
 import utils
 import os
+from rejson import Client, Path
 
 app = FastAPI()
+cache = Client(host='redis', port=6379, decode_responses=True)
 
 app.add_middleware(CORSMiddleware, allow_origins=["*"])
 
 # Get the data from environment variables
 MAX_ROWS = int(os.environ.get("MAX_ROWS", "5"))
 OUTPUT_PATH = os.environ.get("OUTPUT_PATH", "Not Set")
+CACHE_MINUTES = int(os.environ.get("CACHE_MINUTES", 15))
 
 @app.get("/")
 def read_root():
     return {"API": "Working"}
 
+# Get's info on the cache
+@app.get("/cache")
+def read_cached_keys():
+    data = {"memory_stats": cache.memory_stats(),
+            "cache": cache.keys(),
+           }
+    if len(cache.keys()) > 0:
+        data["random key's ttl"] = cache.ttl(cache.randomkey())
+    return data
+
+# Clears all the data in cache
+# Ideally should be run in a separate container and network/ separate endpoint than the main service
+@app.get("/clearcache")
+def clear_cached_keys():
+    cache.flushdb()
+    return {"cache": cache.keys()}
 
 @app.get("/data/{fetch_type}/{fetch_category}/{file_time}")
 def read_full_data(
@@ -28,6 +47,9 @@ def read_full_data(
     nrows: str = "5",
     skiprows: str = "None",
 ):
+    url_path = f"/data/{fetch_type}/{fetch_category}/{file_time}/{nrows}/{skiprows}"
+    if cache.exists(url_path):
+        return cache.jsonget(url_path, Path.rootPath())
     valid_fetch_types = ["submissions", "comments"]
     valid_fetch_category = ["hot", "new"]
     if fetch_type in valid_fetch_types and fetch_category in valid_fetch_category:
@@ -65,6 +87,8 @@ def read_full_data(
                 data["body"] = data["body"].apply(utils.cleanse_text)
 
             data = data.to_dict("records")
+            cache.jsonset(url_path, Path.rootPath(), data)
+            cache.expire(url_path, timedelta(minutes=CACHE_MINUTES))
             return data
         except FileNotFoundError:
             return {"error": {"detail": "Page Not Found"}}
@@ -76,6 +100,8 @@ def read_full_data(
 
 @app.get("/display")
 def read_valid_paths():
+    if cache.exists('/display'):
+        return cache.jsonget('/display', Path.rootPath())
     pattern = f"%d-%m-%Y-%H-%M-%S"
     files_to_fetch = "*.csv"
     if OUTPUT_PATH == "Not Set":
@@ -83,7 +109,7 @@ def read_valid_paths():
     files = glob.glob(OUTPUT_PATH + files_to_fetch)
     files = [el.split(OUTPUT_PATH)[1].split(".csv")[0] for el in files]
     paths = ["data/" + "/".join(el.split("_")) for el in files]
-    times = [datetime.strptime(el.split("_")[-1], pattern) for el in files]
+    times = [datetime.strptime(el.split("_")[-1], pattern).isoformat() for el in files]
     types = [el.split("_")[0] for el in files]
     category = [el.split("_")[1] for el in files]
 
@@ -95,4 +121,6 @@ def read_valid_paths():
     }
 
     data = pd.DataFrame(data=template).to_dict("records")
+    cache.jsonset('/display', Path.rootPath(), data)
+    cache.expire("/display", timedelta(minutes=CACHE_MINUTES))
     return data
