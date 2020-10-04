@@ -7,6 +7,7 @@ import glob
 import utils
 import os
 from rejson import Client, Path
+from redis.exceptions import WatchError
 
 app = FastAPI()
 cache = Client(host='redis', port=6379, decode_responses=True)
@@ -96,7 +97,7 @@ def read_full_data(
                 pipe.jsonset(url_path, Path.rootPath(), data)
                 pipe.expire(url_path, timedelta(minutes=CACHE_MINUTES))
                 pipe.execute()
-            except cache.WatchError:
+            except WatchError:
                 pass
             finally:
                 pipe.reset()
@@ -138,7 +139,7 @@ def read_valid_paths():
         pipe.jsonset('/display', Path.rootPath(), data)
         pipe.expire("/display", timedelta(minutes=CACHE_MINUTES))
         pipe.execute()
-    except cache.WatchError:
+    except WatchError:
         pass
     finally:
         pipe.reset()
