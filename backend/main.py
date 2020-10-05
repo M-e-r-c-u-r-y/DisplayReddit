@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from starlette.middleware.cors import CORSMiddleware
 
 from datetime import datetime, timedelta
@@ -20,6 +20,19 @@ MAX_ROWS = int(os.environ.get("MAX_ROWS", "5"))
 OUTPUT_PATH = os.environ.get("OUTPUT_PATH", "Not Set")
 CACHE_MINUTES = int(os.environ.get("CACHE_MINUTES", 15))
 
+# Separate function to add data into cache in the background
+def add_to_cache(url_path: str, data):
+    try:
+        pipe.watch(url_path)
+        pipe.multi()
+        pipe.jsonset(url_path, Path.rootPath(), data)
+        pipe.expire(url_path, timedelta(minutes=CACHE_MINUTES))
+        pipe.execute()
+    except WatchError:
+        pass
+    finally:
+        pipe.reset()
+    return
 # Check if api's working
 @app.get("/")
 def read_root():
@@ -45,11 +58,12 @@ def clear_cached_keys():
 #Fetch data
 @app.get("/data/{fetch_type}/{fetch_category}/{file_time}")
 def read_full_data(
+    background_tasks: BackgroundTasks,
     fetch_type: str,
     fetch_category: str,
     file_time: str,
     nrows: str = "5",
-    skiprows: str = "None",
+    skiprows: str = "None"
 ):
     url_path = f"/data/{fetch_type}/{fetch_category}/{file_time}/{nrows}/{skiprows}"
     if cache.exists(url_path):
@@ -91,16 +105,7 @@ def read_full_data(
                 data["body"] = data["body"].apply(utils.cleanse_text)
 
             data = data.to_dict("records")
-            try:
-                pipe.watch(url_path)
-                pipe.multi()
-                pipe.jsonset(url_path, Path.rootPath(), data)
-                pipe.expire(url_path, timedelta(minutes=CACHE_MINUTES))
-                pipe.execute()
-            except WatchError:
-                pass
-            finally:
-                pipe.reset()
+            background_tasks.add_task(add_to_cache, url_path=url_path, data=data)
             return data
         except FileNotFoundError:
             return {"error": {"detail": "Page Not Found"}}
@@ -111,7 +116,7 @@ def read_full_data(
 
 # Return all valid paths
 @app.get("/display")
-def read_valid_paths():
+def read_valid_paths(background_tasks: BackgroundTasks):
     if cache.exists('/display'):
         return cache.jsonget('/display', Path.rootPath())
     pattern = f"%d-%m-%Y-%H-%M-%S"
@@ -133,14 +138,5 @@ def read_valid_paths():
     }
 
     data = pd.DataFrame(data=template).to_dict("records")
-    try:
-        pipe.watch('/display')
-        pipe.multi()
-        pipe.jsonset('/display', Path.rootPath(), data)
-        pipe.expire("/display", timedelta(minutes=CACHE_MINUTES))
-        pipe.execute()
-    except WatchError:
-        pass
-    finally:
-        pipe.reset()
+    background_tasks.add_task(add_to_cache, url_path='/display', data=data)
     return data
