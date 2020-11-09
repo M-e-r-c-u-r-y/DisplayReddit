@@ -1,12 +1,35 @@
 version: "3.8"
 services:
+  db:
+    container_name: db
+    image: "postgres:alpine"
+    environment:
+      - POSTGRES_DB=${DOCKER_POSTGRES_DB}
+      - POSTGRES_USER=${DOCKER_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${DOCKER_POSTGRES_PASSWORD}
+      - PGDATA=${DOCKER_PGDATA}
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 200M
+        reservations:
+          memory: 100M
+    networks:
+      - webappnetwork
+    volumes:
+      - ./database/db.sql:/docker-entrypoint-initdb.d/init.sql # Use this if you want to spin up a container and have some initialization satements(eg make tables, insert data, etc)
+      - dbvolume:/var/lib/postgresql/data # using named volume to persist data; run `docker volume create dbvolume` before `docker-compose up`
+    command: ["postgres", "-c", "log_statement=all"] # To see all the commands running on our db live
+    ports:
+      - "5432:5432"
   redis:
     container_name: redis
     image: "redislabs/rejson:latest"
     deploy:
       resources:
         limits:
-          cpus: '0.20'
+          cpus: "0.20"
           memory: 200M
         reservations:
           memory: 100M
@@ -14,10 +37,11 @@ services:
       - webappnetwork
   backend:
     container_name: backend
+    restart: always
     deploy:
       resources:
         limits:
-          cpus: '0.20'
+          cpus: "0.20"
           memory: 500M
         reservations:
           memory: 100M
@@ -27,9 +51,10 @@ services:
     # command: uvicorn main:app --reload --workers 1 --host 0.0.0.0 --port 8000
     # command: ls -al /usr/src/app/output
     environment:
-      - MAX_ROWS=5
-      - OUTPUT_PATH=./output/
-      - CACHE_MINUTES=15
+      - MAX_ROWS=${DOCKER_MAX_ROWS}
+      - OUTPUT_PATH=${DOCKER_OUTPUT_PATH}
+      - CACHE_MINUTES=${DOCKER_CACHE_MINUTES}
+      - TORTOISEORM_DSN=${DOCKER_DSN}
     # expose:
     #   - "8000"
     ports:
@@ -43,15 +68,16 @@ services:
       - webappnetwork
     depends_on:
       - redis
+      - db
   frontend:
     container_name: frontend
     deploy:
       resources:
         limits:
-          cpus: '0.40'
-          memory: 500M
+          cpus: "0.60"
+          memory: 1000M
         reservations:
-          memory: 200M
+          memory: 1000M
     stdin_open: true
     build:
       context: ./frontend
@@ -60,7 +86,7 @@ services:
     # expose:
     #   - "3000"
     ports:
-      - 3000:3000
+      - "3000:3000"
     environment:
       - CHOKIDAR_USEPOLLING=true
     volumes:
@@ -73,3 +99,6 @@ services:
 networks:
   webappnetwork:
     driver: bridge
+volumes:
+  dbvolume:
+    external: true

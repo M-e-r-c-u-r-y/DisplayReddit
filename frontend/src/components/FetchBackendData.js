@@ -7,24 +7,37 @@ import FailedScreen from "./FailedScreen";
 import FetchListItem from "./FetchListItem";
 import InvalidPath from "./InvalidPath";
 import DisplayOptions from "./DisplayOptions";
+import { useSelector, useDispatch } from "react-redux";
+import { setVisibilitySorter } from "../features/sorters/sortersSlice";
 
 const FetchBackendData = () => {
-  const domain = "http://localhost:8000";
+  const domain = "http://localhost:8000/api/v2";
   const path = "/display";
   const result = useFetchData(domain + path);
   const [output, setOutput] = useState([]);
-  const [sortType, setSortType] = useState("time");
+  const defaultValue = useSelector((state) => state.visibilitySorter);
+  const [sortType, setSortType] = useState(defaultValue);
+  const dispatch = useDispatch();
   const options = [
     { value: "time", text: "Time" },
     { value: "comments", text: "Comments" },
-    { value: "submissions", text: "Submissions" },
+    { value: "posts", text: "Posts" },
   ];
 
   const sortoptions =
     result.loading || result.fetch === "failed" || result.error ? null : (
       <DisplayOptions
-        onChange={(e) => setSortType(e.target.value)}
+        styles={{ width: 120, paddingTop: 5 }}
+        onChange={(value) => {
+          setSortType(value);
+          // dispatch({ type: "VisibilityFilter", payload: value });
+          dispatch(
+            // visibilityFilter({ type: "VisibilityFilter", payload: value })
+            setVisibilitySorter(value)
+          );
+        }}
         options={options}
+        defaultValue={defaultValue}
       />
     );
   // Update items display order based on sort criteria selected
@@ -39,23 +52,23 @@ const FetchBackendData = () => {
       const displaydomain = "/";
       let sorted = null;
       if (sortType === "comments") {
-        sorted = [...result].sort((a, b) => (a.type > b.type ? 1 : -1));
-      } else if (sortType === "submissions") {
-        sorted = [...result].sort((a, b) => (b.type > a.type ? 1 : -1));
+        sorted = [...result].sort((a, b) => (a.datatype > b.datatype ? 1 : -1));
+      } else if (sortType === "posts") {
+        sorted = [...result].sort((a, b) => (b.datatype > a.datatype ? 1 : -1));
       } else if (sortType === "time") {
         sorted = [...result].sort(function (a, b) {
-          let c = new Date(a.time);
-          let d = new Date(b.time);
+          let c = new Date(a.fetched_utc);
+          let d = new Date(b.fetched_utc);
           return d - c;
         });
       }
       setOutput(
         sorted.map((item) => (
           <FetchListItem
-            key={item.path}
-            link={displaydomain + item.path}
-            date={new Date(item.time).toUTCString()}
-            type={item.type}
+            key={item.datapath}
+            link={displaydomain + item.datapath}
+            date={new Date(item.fetched_utc).toUTCString()}
+            type={item.datatype}
             category={item.category}
           />
         ))
@@ -75,8 +88,8 @@ const FetchBackendData = () => {
       setOutput(<FailedScreen status={status} statusText={statusText} />);
     } else if (!result.error) {
       result.sort(function (a, b) {
-        let c = new Date(a.time);
-        let d = new Date(b.time);
+        let c = new Date(a.fetched_utc);
+        let d = new Date(b.fetched_utc);
         return d - c;
       });
     } else {

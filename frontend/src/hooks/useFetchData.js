@@ -5,16 +5,16 @@ const useFetchData = (url, options) => {
   const [response, setResponse] = useState({ loading: true });
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchData = async (url, options) => {
       try {
-        const response = await fetch(url, options);
-        const json = await response.json();
-        if (response.status >= 200 && response.status < 300) {
+        const result = await fetch(url, options);
+        const json = await result.json();
+        if (result.status >= 200 && result.status < 300) {
           setResponse(json);
         } else {
           setResponse({
-            status: response.status,
-            statusText: response.statusText,
+            status: result.status,
+            statusText: result.statusText,
             fetch: "failed",
           });
         }
@@ -26,7 +26,7 @@ const useFetchData = (url, options) => {
         });
       }
     };
-    fetchData();
+    fetchData(url, options);
   }, [url, options]);
   return response;
 };

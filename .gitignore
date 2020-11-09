@@ -3,6 +3,7 @@
 # dependencies
 node_modules
 __pycache__/
+experimental/
 *.py[cod]
 *$py.class
 *.pyc

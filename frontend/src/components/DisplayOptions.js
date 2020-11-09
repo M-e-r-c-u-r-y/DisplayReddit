@@ -1,15 +1,18 @@
 import React from "react";
 import "../App.css";
+import { Select } from "antd";
 
-const DisplayOptions = ({ onChange, options }) => {
+const { Option } = Select;
+
+const DisplayOptions = ({ onChange, options, styles, defaultValue }) => {
   return (
-    <select className="select-css" onChange={onChange}>
+    <Select style={styles} defaultValue={defaultValue} onChange={onChange}>
       {options.map((tab) => (
-        <option key={tab.value} value={tab.value}>
+        <Option key={tab.value} value={tab.value}>
           {tab.text}
-        </option>
+        </Option>
       ))}
-    </select>
+    </Select>
   );
 };
 

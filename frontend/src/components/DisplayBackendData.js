@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import queryString from "query-string";
 import { useHistory, useLocation } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import { resetTags } from "../features/taggers/taggersSlice";
 
 import useFetchData from "../hooks/useFetchData";
 
@@ -8,28 +10,88 @@ import Loading from "./Loading";
 import FailedScreen from "./FailedScreen";
 import DisplayListItem from "./DisplayListItem";
 import InvalidPath from "./InvalidPath";
-import Button from "./Button";
+import { Button, Space } from "antd";
+import { Row, Col } from "antd";
 
 const DisplayBackendData = ({ location: { search, pathname } }) => {
-  const domain = "http://localhost:8000";
+  const domain = "http://localhost:8000/api/v1";
   const maxrows = 5;
   let history = useHistory();
   let location = useLocation();
+  const ButtonClicks = useRef(null);
+  const tags = useSelector((state) => state.tags);
+  const dispatch = useDispatch();
 
   const [pathparams, setPathParams] = useState({
     nrows: maxrows,
     skiprows:
       Number({ ...queryString.parse(search) }.skiprows) >= maxrows
         ? Number({ ...queryString.parse(search) }.skiprows)
-        : "None",
+        : 0,
   });
 
   const path = pathname + `?${queryString.stringify(pathparams)}`;
 
   const result = useFetchData(domain + path);
   const [output, setOutput] = useState([]);
-  const [nextItems, setNextItems] = useState(null);
-  const [prevItems, setPrevItems] = useState(null);
+  const nextClick = async () => {
+    let tagsLength = 0;
+    for (let i = 0; i < tags.length; i++) {
+      const item = tags[i];
+      tagsLength += item.data.length;
+    }
+
+    console.log(tagsLength);
+    if (tagsLength === 15) {
+      const res = await fetch(domain + "/tagged/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(tags),
+      });
+      const result = await res.json();
+      if (result.success) {
+        console.log("Successfully processed data");
+        dispatch(resetTags());
+        if (history.action === "POP") {
+          history.push(path);
+        }
+        setPathParams({
+          ...pathparams,
+          skiprows: Number(pathparams.skiprows)
+            ? Number(pathparams.skiprows) + maxrows
+            : maxrows,
+        });
+        setTimeout(() => {
+          ButtonClicks.current.scrollIntoView({ behavior: "smooth" });
+        }, 300);
+      } else {
+        // Todo: Must display the error in UI
+        console.log("Error in processing data");
+        console.log(result);
+      }
+    } else {
+      // Todo: Must take UI to first element not tagged
+      console.log("All items are not tagged");
+    }
+  };
+
+  const prevClick = () => {
+    if (history.action === "POP") {
+      history.push(path);
+    }
+    setPathParams({
+      ...pathparams,
+      skiprows:
+        Number(pathparams.skiprows) !== maxrows && Number(pathparams.skiprows)
+          ? Number(pathparams.skiprows) - maxrows
+          : 0,
+    });
+    setTimeout(() => {
+      ButtonClicks.current.scrollIntoView({ behavior: "smooth" });
+    }, 300);
+  };
 
   // Push path to history queue as needed
   useEffect(() => {
@@ -47,7 +109,7 @@ const DisplayBackendData = ({ location: { search, pathname } }) => {
       locationparsed.skiprows =
         Number(locationparsed.skiprows) >= 5
           ? Number(locationparsed.skiprows)
-          : "None";
+          : 0;
       locationparsed.nrows = pathparams.nrows;
       if (locationparsed.skiprows !== pathparams.skiprows) {
         setPathParams(locationparsed);
@@ -70,14 +132,18 @@ const DisplayBackendData = ({ location: { search, pathname } }) => {
 
     //Display the items if the fetch is successful
     else if (!result.error) {
-      const listItems = result.map((result) => (
+      const data = result.data;
+      const listItems = data.map((item) => (
         <DisplayListItem
-          key={result.permalink}
-          body={result.body}
-          selftext={result.selftext}
-          author={result.author}
-          permalink={result.permalink}
-          score={result.score}
+          key={item.id}
+          id={item.id}
+          body={item.body}
+          title={item.title}
+          selftext={item.selftext}
+          author={item.author}
+          permalink={item.permalink}
+          score={item.score}
+          options={result.options}
         />
       ));
 
@@ -88,50 +154,41 @@ const DisplayBackendData = ({ location: { search, pathname } }) => {
     }
   }, [result]);
 
-  // For creating next and back buttons as necessary
-  useEffect(() => {
-    const nextClick = () => {
-      if (history.action === "POP") {
-        history.push(path);
-      }
-      setPathParams({
-        ...pathparams,
-        skiprows: Number(pathparams.skiprows)
-          ? Number(pathparams.skiprows) + maxrows
-          : maxrows,
-      });
-    };
-
-    const prevClick = () => {
-      if (history.action === "POP") {
-        history.push(path);
-      }
-      setPathParams({
-        ...pathparams,
-        skiprows:
-          Number(pathparams.skiprows) !== maxrows && Number(pathparams.skiprows)
-            ? Number(pathparams.skiprows) - maxrows
-            : "None",
-      });
-    };
-    setNextItems(
-      result.loading || result.fetch === "failed" || result.error ? null : (
-        <Button onClick={nextClick} text="Next" />
-      )
-    );
-    setPrevItems(
-      result.loading ||
-        result.fetch === "failed" ||
-        result.error ? null : pathparams.skiprows !== "None" ? (
-        <Button onClick={prevClick} text="Prev" />
-      ) : null
-    );
-  }, [pathparams, history, path, result.loading, result.fetch, result.error]);
   return (
     <>
       {output}
-      {prevItems}
-      {nextItems}
+      <div ref={ButtonClicks}>
+        <Row justify="center" align="middle">
+          <Col span={6} offset={3}>
+            <Space style={{ paddingTop: 5 }}>
+              {result.loading ||
+              result.fetch === "failed" ||
+              result.error ? null : pathparams.skiprows !== 0 ? (
+                <Button
+                  size="large"
+                  onClick={prevClick}
+                  type="primary"
+                  shape="round"
+                >
+                  Prev
+                </Button>
+              ) : null}
+              {result.loading ||
+              result.fetch === "failed" ||
+              result.error ? null : (
+                <Button
+                  size="large"
+                  onClick={nextClick}
+                  type="primary"
+                  shape="round"
+                >
+                  Next
+                </Button>
+              )}
+            </Space>
+          </Col>
+        </Row>
+      </div>
     </>
   );
 };

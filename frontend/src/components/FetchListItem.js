@@ -4,7 +4,7 @@ import "../App.css";
 
 const FetchListItem = ({ link, date, type, category }) => {
   return (
-    <div className="List">
+    <div className="List center">
       <Link to={link}>{link}</Link>
       <div>{date}</div>
       <div>{type}</div>

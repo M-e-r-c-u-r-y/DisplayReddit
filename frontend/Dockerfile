@@ -23,7 +23,7 @@ FROM node:12-alpine
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 COPY package.json ./
-COPY package-lock.json ./
+# COPY package-lock.json ./
 RUN npm install
 RUN npm install react-scripts@3.4.3 -g
 COPY . ./
