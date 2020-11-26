@@ -1,7 +1,7 @@
 import React from "react";
 import "../App.css";
 import TagItem from "./TagItem";
-
+import { useSelector } from "react-redux";
 const DisplayListItem = ({
   id,
   body,
@@ -14,8 +14,17 @@ const DisplayListItem = ({
 }) => {
   // console.log(options);
   const type = body === undefined ? "posts" : "comments";
+  let classes = "List";
+  let tagClass = "";
+  let tag = useSelector((state) => state.tags).filter((tag) => tag.id === id);
+  if (tag.length > 0) {
+    tagClass =
+      tag[0].data.length === options.length ? "completed-item" : "error-item";
+  }
+  // console.log(tags, id);
+  classes += " " + tagClass;
   return (
-    <div className="List">
+    <div className={classes}>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
         <div>{score}</div>
       </div>

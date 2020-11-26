@@ -9,6 +9,7 @@ import InvalidPath from "./InvalidPath";
 import DisplayOptions from "./DisplayOptions";
 import { useSelector, useDispatch } from "react-redux";
 import { setVisibilitySorter } from "../features/sorters/sortersSlice";
+import { BackTop } from "antd";
 
 const FetchBackendData = () => {
   const domain = "http://localhost:8000/api/v2";
@@ -102,6 +103,7 @@ const FetchBackendData = () => {
     <>
       {sortoptions}
       {output}
+      <BackTop />
     </>
   );
 };

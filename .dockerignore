@@ -3,5 +3,6 @@
 **/__pycache__
 **/.git
 .gitignore
-Dockerfile
+**/Dockerfile
+**/.dockerignore
 .editorconfig

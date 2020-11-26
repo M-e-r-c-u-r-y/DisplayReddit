@@ -5,7 +5,7 @@ WORKDIR /usr/src/app
 # ENV OUTPUT_PATH
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
-COPY *.py ./
+COPY ./app ./app
 FROM base AS dev
 CMD ["uvicorn", "app.main:app", "--reload", "--workers", "1", "--host", "0.0.0.0", "--port", "8000"]
 # EXPOSE 8000

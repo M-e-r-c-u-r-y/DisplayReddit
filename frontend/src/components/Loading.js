@@ -1,7 +1,11 @@
 import React from "react";
+import { Spin } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
+
+const antIcon = <LoadingOutlined style={{ fontSize: 24 }} spin />;
 
 const Loading = () => {
-  return <div>loading...</div>;
+  return <Spin indicator={antIcon} delay={500} />;
 };
 
 export default Loading;

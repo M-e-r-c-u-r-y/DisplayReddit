@@ -52,7 +52,6 @@ services:
     # command: ls -al /usr/src/app/output
     environment:
       - MAX_ROWS=${DOCKER_MAX_ROWS}
-      - OUTPUT_PATH=${DOCKER_OUTPUT_PATH}
       - CACHE_MINUTES=${DOCKER_CACHE_MINUTES}
       - TORTOISEORM_DSN=${DOCKER_DSN}
     # expose:
@@ -62,8 +61,7 @@ services:
     # environment:
     #   - CHOKIDAR_USEPOLLING=true
     volumes:
-      - ./backend:/usr/src/app
-      - ./../output:/usr/src/app/output
+      - ./backend/app:/usr/src/app/app
     networks:
       - webappnetwork
     depends_on:
@@ -90,8 +88,8 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
     volumes:
-      - ./frontend:/usr/src/app
-      - /usr/src/app/node_modules
+      - "./frontend:/usr/src/app"
+      - "/usr/src/app/node_modules/"
     networks:
       - webappnetwork
     depends_on:

@@ -10,9 +10,6 @@ from pydantic import BaseModel, ValidationError, validator
 
 from datetime import datetime
 
-from fastapi_users import models
-from fastapi_users.db import TortoiseBaseUserModel
-
 pattern = f"%d-%m-%Y-%H-%M-%S"
 
 

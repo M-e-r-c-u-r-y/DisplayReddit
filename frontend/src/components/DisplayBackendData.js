@@ -10,7 +10,7 @@ import Loading from "./Loading";
 import FailedScreen from "./FailedScreen";
 import DisplayListItem from "./DisplayListItem";
 import InvalidPath from "./InvalidPath";
-import { Button, Space } from "antd";
+import { Button, Space, notification, BackTop } from "antd";
 import { Row, Col } from "antd";
 
 const DisplayBackendData = ({ location: { search, pathname } }) => {
@@ -21,6 +21,26 @@ const DisplayBackendData = ({ location: { search, pathname } }) => {
   const ButtonClicks = useRef(null);
   const tags = useSelector((state) => state.tags);
   const dispatch = useDispatch();
+  const openNotificationWithIcon = (type) => {
+    const message =
+      type === "warning"
+        ? "All items are not tagged"
+        : type === "success"
+        ? "Saved to DB"
+        : null;
+    const description =
+      type === "warning"
+        ? "Please recheck the taggings and proceed further"
+        : type === "success"
+        ? ""
+        : null;
+    const duration = type === "warning" ? 2 : type === "success" ? 1 : null;
+    notification[type]({
+      message: message,
+      description: description,
+      duration: duration,
+    });
+  };
 
   const [pathparams, setPathParams] = useState({
     nrows: maxrows,
@@ -42,7 +62,7 @@ const DisplayBackendData = ({ location: { search, pathname } }) => {
     }
 
     console.log(tagsLength);
-    if (tagsLength === 15) {
+    if (tagsLength === result.data_len * result.options_len) {
       const res = await fetch(domain + "/tagged/", {
         method: "POST",
         headers: {
@@ -53,6 +73,10 @@ const DisplayBackendData = ({ location: { search, pathname } }) => {
       const result = await res.json();
       if (result.success) {
         console.log("Successfully processed data");
+        openNotificationWithIcon("success");
+        setTimeout(() => {
+          ButtonClicks.current.scrollIntoView({ behavior: "smooth" });
+        }, 300);
         dispatch(resetTags());
         if (history.action === "POP") {
           history.push(path);
@@ -63,17 +87,14 @@ const DisplayBackendData = ({ location: { search, pathname } }) => {
             ? Number(pathparams.skiprows) + maxrows
             : maxrows,
         });
-        setTimeout(() => {
-          ButtonClicks.current.scrollIntoView({ behavior: "smooth" });
-        }, 300);
       } else {
         // Todo: Must display the error in UI
         console.log("Error in processing data");
         console.log(result);
       }
     } else {
-      // Todo: Must take UI to first element not tagged
-      console.log("All items are not tagged");
+      // Display warning message that all items are not tagged
+      openNotificationWithIcon("warning");
     }
   };
 
@@ -156,8 +177,8 @@ const DisplayBackendData = ({ location: { search, pathname } }) => {
 
   return (
     <>
-      {output}
       <div ref={ButtonClicks}>
+        {output}
         <Row justify="center" align="middle">
           <Col span={6} offset={3}>
             <Space style={{ paddingTop: 5 }}>
@@ -188,6 +209,7 @@ const DisplayBackendData = ({ location: { search, pathname } }) => {
             </Space>
           </Col>
         </Row>
+        <BackTop />
       </div>
     </>
   );

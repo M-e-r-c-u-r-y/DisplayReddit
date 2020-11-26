@@ -6,11 +6,21 @@ export const VisibilitySorters = {
   SUBMISSIONS: "submissions",
 };
 
+const defaultVisibilitySortersState = localStorage.getItem(
+  "defaultVisibilitySorters"
+)
+  ? JSON.parse(localStorage.getItem("defaultVisibilitySorters"))
+  : VisibilitySorters.TIME;
+
 const sortersSlice = createSlice({
   name: "visibilitySorters",
-  initialState: VisibilitySorters.TIME,
+  initialState: defaultVisibilitySortersState,
   reducers: {
-    setVisibilitySorter(state, action) {
+    setVisibilitySorter(_, action) {
+      localStorage.setItem(
+        "defaultVisibilitySorters",
+        JSON.stringify(action.payload)
+      );
       return action.payload;
     },
   },
